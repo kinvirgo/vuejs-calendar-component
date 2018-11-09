@@ -1,37 +1,64 @@
-
-#calendar-section{
+#calendar-root{
+    position: fixed;
+    top: 0;
+    bottom : 0;
+    left : 0;
+    right :0;
+    z-index: 1000;
+}
+.calendar-mask{
     position: absolute;
     top: 0;
     bottom : 0;
     left : 0;
     right :0;
+    background: transparent;
+    // background: rgba(0,0,0,.05);
+}
+.calendar-section{
+    position: absolute;
+    top: 20%;
+    bottom: 0;
+    left: 0;
+    right: 0;
     background: #fff;
     overflow-x: hidden;
     overflow-y: auto;
-    font-family: MicrosoftYaHei;
+    font-family: "microsoft yahei, arial, \5b8b\4f53";
+    -webkit-overflow-scrolling : touch;
 }
-.calendar-table{
+
+
+.calendar-table {
     width: 99.9999%;
-    th{
-        padding: 0.6rem 0;
+
+    th {
+        padding: 15px 0;
         font-weight: normal;
         color: #666;
     }
-    td{
+
+    td {
         text-align: center;
         font-size: 12px;
-        padding: 0.9rem 0;
-        color : #444;
+        padding: 15px 0;
+        color: #444;
         position: relative;
-        &.prev,&.next,&.unavailable{
+        border-radius: 2px;
+
+        &.next,
+        &.prev,
+        &.unavailable {
             color: #BDC5C9;
             background: #EDF2F5;
         }
-        &.primary{
+
+        &.primary {
             background: #2EBBFF;
-            color : #fff;
+            color: #fff;
         }
-        &.today:before{
+
+        &.today:before {
             display: block;
             content: '';
             position: absolute;
@@ -41,11 +68,48 @@
             bottom: 0;
             box-sizing: border-box;
             border: 1px solid #2EBBFF;
+            border-radius: 2px;
         }
     }
 }
-.calendar-table-title{
+
+.calendar-table-title {
     text-align: center;
     padding-top: 10px;
     color: #333333;
 }
+
+// 进入
+
+.slide-enter {
+    transform: translateY(100%);
+    opacity: 0;
+}
+
+.slide-enter-active {
+    transition: all .3s;
+}
+
+.slide-enter-to {
+    transform: translateY(0px);
+    opacity: 1;
+}
+// 退出
+
+.slide-leave {
+    transform: translateY(0px);
+    opacity: 1;
+}
+
+.slide-leave-active {
+    transition: all .3s;
+}
+
+.slide-leave-to {
+    transform: translateY(100%);
+    opacity: 0;
+}
+
+/*.slide-move {
+    transition: transform 0.5s;
+}*/
