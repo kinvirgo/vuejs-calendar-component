@@ -15,7 +15,7 @@
 <script>
 // import Calendar from './component/calendar.vue'
 require('./util');
-import Calendar from './component/calendar.alpha.0.vue'
+import Calendar from './component/calendar.alpha.1.vue'
 export default {
     name: 'app',
     data() {
