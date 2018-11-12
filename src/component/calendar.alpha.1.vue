@@ -2,8 +2,8 @@
 <transition name="slide" tag="div">
     <div id="calendar-root" v-show="display">
         <div class="calendar-mask" @click="hide"></div>
-        <div class="calendar-section">
-            <div class="calendar-table-option" v-for="(item, index) in calendars" :key="index">
+        <div class="calendar-section" :scrollTop.prop="scrollTop" @scroll.passive="onScroll">
+            <div class="calendar-table-option" v-for="(item, index) in calendars" :key="index" :id="getAnchor(item.date)" >
                 <div class="calendar-table-title">{{item.date.format("YYYY年MM月")}}</div>
                 <table class="calendar-table">
                     <thead>
@@ -20,7 +20,9 @@
                             'primary' : primaryTime === dayItem.date.getTime()
                         }">{{dayItem.day}}</td>
                                 <!-- 无效 -->
-                                <td :key="dayIndex" v-else class="unavailable">{{dayItem.day}}</td>
+                                <td :key="dayIndex" v-else-if="dayItem.type === 0" class="unavailable">{{ dayItem.type === 0 ? dayItem.day : ''}}</td>
+                                <!-- 上下月 -->
+                                <td :key="dayIndex" v-else :class="{'unavailable':dayItem.type != 0 && option.showPrevNextDate}">{{ dayItem.type != 0 && option.showPrevNextDate ? dayItem.day : ''}}</td>
                             </template>
                         </tr>
                     </tbody>
@@ -71,6 +73,8 @@ export default {
         }
     },
     data: () => ({
+        tag : Math.random().toString(36).substr(2),
+        scrollTop : 0,
         minDateTime : null,
         maxDateTime : null,
         display: false,
@@ -82,6 +86,7 @@ export default {
         primaryTime: null,
         // 默认配置
         option: {
+            showPrevNextDate : false, //上下月是否展示
             minDate: null,
             maxDate: null,
             weekStart: 0,
@@ -112,8 +117,21 @@ export default {
     mounted() {
         // 初始化
         this.init();
+        // this.scrollTop = 1000;
     },
     methods: {
+        onScroll(e){
+            this.scrollTop = e.target.scrollTop;
+        },
+        getAnchor(date){
+            let m = date.getMonth()+1;
+            m = m > 9 ? m : `0${m}`;
+            return `${this.tag}_${date.getFullYear()}${m}`;
+        },
+        // myScrollTop(){
+        //     console.log('in myScrollTop');
+        //     return this.scrollTop;
+        // },
         init() {
             const {
                 copywriter,
@@ -133,7 +151,7 @@ export default {
             this.i18n = copywriter[opt.language];
             this.fixDate = new Date();
             this.weekStart = /^[0-6]$/g.test(opt.weekStart) ? opt.weekStart : 0;
-            this.view = 12; /*===test===*/
+            this.view = 13; /*===test===*/
             // this.view =  isType(opt.view, 'Number') && opt.view > 1 && opt.view <6 ? opt.view : 3;
             this.cache = isType(opt.cache, 'Number') && opt.cache > 1 && opt.cache < 4 ? opt.cache : 3;
         },
@@ -154,7 +172,7 @@ export default {
                 this.calendars = [];
                 // 渲染日期
                 if (this.isDate(date)) {
-                    this.fixDate = date;
+                    // this.fixDate = date;
                     this.primaryVal = date;
                     this.primaryTime = this.getTimeOfclearTime(date);
                 }
@@ -162,6 +180,23 @@ export default {
                 this.todayDateTime = this.getTimeOfclearTime(new Date());
                 this.getCalendars();
                 this.show();
+                // this.$refs.myScrollTop.scrollTop = 100;
+                console.log( this.scrollTop );
+                // 一定要异步否则无效 mounted 无法保证组件全部已经在document中
+                setTimeout(()=>{
+                    // console.log( this.getAnchor(this.primaryVal || new Date()) );
+                    if(!!this.primaryVal){
+                        let p = document.getElementById( this.getAnchor(this.primaryVal) );
+                        console.log(p.offsetTop);
+                        this.scrollTop = p.offsetTop || 0;
+                    }else{
+                        // 最小值
+                        let anchorDate = !!this.minDateTime ? new Date(this.minDateTime) : new Date();
+                        let p = document.getElementById( this.getAnchor(anchorDate) );
+                        this.scrollTop = p.offsetTop || 0;
+                    }
+                    // this.scrollTop = 1000;
+                },50)
 
                 this.select = (date) => {
                     this.choose(date);

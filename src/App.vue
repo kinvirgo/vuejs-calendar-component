@@ -25,12 +25,12 @@ export default {
             startConfig: {
                 minDate: new Date(),
                 maxDate: new Date(2019, 10, 9),
-                weekStart: 1,
+                weekStart: 0,
             },
             endConfig: {
                 minDate: new Date(),
                 maxDate: new Date(2019, 10, 9),
-                weekStart: 1,
+                weekStart: 0,
             },
         }
     },
