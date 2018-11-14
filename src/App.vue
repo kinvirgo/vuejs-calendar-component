@@ -3,11 +3,11 @@
     <h2>日历插件</h2>
     <p @click="selectStartDate">去程日期：{{ startDate && startDate.format() }}</p>
     <div class="calendar-container">
-        <Calendar ref="myStartCalendar" v-model="startDate" :option="startConfig" />
+        <!-- <Calendar ref="myStartCalendar" v-model="startDate" :option="startConfig" /> -->
     </div>
     <p @click="selectEndDate">回程日期：{{ endDate && endDate.format() }}</p>
     <div class="calendar-container">
-        <Calendar ref="myEndCalendar" v-model="endDate" :option="endConfig" />
+        <!-- <Calendar ref="myEndCalendar" v-model="endDate" :option="endConfig" /> -->
     </div>
 </div>
 </template>
@@ -16,7 +16,7 @@
 // import Calendar from './component/calendar.vue'
 require('./util');
 // import Calendar from './component/calendar.alpha.1.vue'
-import Calendar from './component/calendar.beta.0.vue'
+// import Calendar from './component/calendar.beta.0.vue'
 export default {
     name: 'app',
     data() {
@@ -40,16 +40,33 @@ export default {
     },
     mounted() {
         // this.selectStartDate();
+        // console.log( this.$Calendar );
+        let Cal = this.$Calendar; //获得Calendar插件
+        this.startCalendar = new Cal({
+            minDate: new Date(),
+            maxDate: new Date(new Date().setFullYear(new Date().getFullYear()+1)),
+            week: 1,
+        }); //实例一个对象
+        this.endCalendar = new Cal({
+            minDate: new Date(),
+            maxDate: new Date(new Date().setFullYear(new Date().getFullYear()+1)),
+            week: 1, //一周星期几开始 0-7[星期日-星期一]
+            // showPrevNextDate : false,  //上下月是否展示
+            language: 'en',
+            format : "YYYY MM", //每月月标题格式
+            // publicWeek: true, //公用周标题
+        });
+        // console.log(this.startCalendar);
     },
     components: {
-        Calendar
+        // Calendar
     },
     methods: {
         selectStartDate() {
-            var _this = this;
+            // var _this = this;
             //render(定位日期,[开始日期,结束日期])
             // 定位日期 > [开始日期,结束日期] > 今天日期
-            this.$refs.myStartCalendar.render(this.startDate, this.range).then((date) => {
+            /*this.$refs.myStartCalendar.render(this.startDate, this.range).then((date) => {
                 // 开始日期
                 // _this.endConfig.minDate = date;
                 this.range[0] = date;
@@ -59,28 +76,51 @@ export default {
                     this.range[1] = null;
                     this.endDate = null;
                 }
+            });*/
+            const {startCalendar} = this;
+            startCalendar.render(this.startDate, this.range).then((date)=>{
+                this.startDate = date;
+                this.range[0] = date;
+                const {range}=this;
+                if(!!range[1] && date.getTime() > range[1].getTime()){
+                    this.range[1] = null;
+                    this.endDate = null;
+                }
             });
         },
         selectEndDate() {
-            var _this = this;
-            //render(定位日期,[开始日期,结束日期])
-            this.$refs.myEndCalendar.render(this.endDate, this.range).then((date) => {
-                // 结束日期
-                // _this.startConfig.maxDate = date;
-
+            // var _this = this;
+            // //render(定位日期,[开始日期,结束日期])
+            // this.$refs.myEndCalendar.render(this.endDate, this.range).then((date) => {
+            //     // 结束日期
+            //     // _this.startConfig.maxDate = date;
+            //
+            //     this.range[1] = date;
+            //
+            //     const {range}=this;
+            //     if(!!range[0] && date.getTime() < range[0].getTime()){
+            //         this.range[1] = this.range[0];
+            //         this.endDate = this.range[0];
+            //
+            //         this.range[0] = date;
+            //         this.startDate = date;
+            //
+            //
+            //     }
+            // });
+            const {endCalendar} = this;
+            endCalendar.render(this.endDate, this.range).then((date)=>{
+                this.endDate = date;
                 this.range[1] = date;
-
                 const {range}=this;
                 if(!!range[0] && date.getTime() < range[0].getTime()){
                     this.range[1] = this.range[0];
                     this.endDate = this.range[0];
-
                     this.range[0] = date;
                     this.startDate = date;
-
-
                 }
             });
+
         }
     }
 }
