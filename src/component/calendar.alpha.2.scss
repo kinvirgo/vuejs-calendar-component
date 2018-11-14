@@ -1,0 +1,154 @@
+li,
+ul {
+    margin: 0;
+    padding: 0;
+}
+
+#calendar-root {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.calendar-mask {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    // background: transparent;
+    background: rgba(0,0,0,.05);
+}
+
+.calendar-section {
+    position: absolute;
+    top: 20%;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    font-family: "microsoft yahei, arial, \5b8b\4f53";
+    -webkit-overflow-scrolling: touch;
+    padding-top: 40px;
+}
+
+.calendar-title {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    display: table;
+    background: #fff;
+    border-bottom: 1px solid #f1f1f1;
+    box-sizing: border-box;
+    z-index: 10;
+
+    > li {
+        display: table-cell;
+        padding: 9px 0;
+        text-align: center;
+        font-size: 12px;
+        line-height: 20px;
+    }
+}
+
+.calendar-lists {
+    position: absolute;
+    left: 0;
+    top: 40px;
+    bottom: 0;
+    right: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    z-index: 8;
+}
+
+.calendar-table {
+    width: 99.9999%;
+
+    th {
+        padding: 15px 0;
+        font-weight: normal;
+        color: #666;
+    }
+
+    td {
+        text-align: center;
+        font-size: 12px;
+        padding: 15px 0;
+        color: #444;
+        position: relative;
+        border-radius: 2px;
+
+        &.next,
+        &.prev,
+        &.unavailable {
+            color: #BDC5C9;
+            background: #EDF2F5;
+        }
+
+        &.primary {
+            background: #2EBBFF;
+            color: #fff;
+        }
+        &.range{
+            // background: #d2ecff;
+            background: #afddff;
+            color: #fff;
+        }
+
+        &.today:before {
+            display: block;
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            box-sizing: border-box;
+            border: 1px solid #2EBBFF;
+            border-radius: 2px;
+        }
+    }
+}
+
+.calendar-table-title {
+    text-align: center;
+    padding: 10px 0;
+    color: #333333;
+    font-weight: 400;
+}
+// 进入
+.slide-enter {
+    transform: translateY(100%);
+    opacity: 0;
+}
+
+.slide-enter-active {
+    transition: all 0.2s;
+}
+
+.slide-enter-to {
+    transform: translateY(0px);
+    opacity: 1;
+}
+// 退出
+
+.slide-leave {
+    transform: translateY(0px);
+    opacity: 1;
+}
+
+.slide-leave-active {
+    transition: all 0.2s;
+}
+
+.slide-leave-to {
+    transform: translateY(100%);
+    opacity: 0;
+}
+/*.slide-move {
+    transition: transform 0.5s;
+}*/

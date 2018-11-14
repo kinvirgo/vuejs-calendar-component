@@ -2,31 +2,38 @@
 <transition name="slide" tag="div">
     <div id="calendar-root" v-show="display">
         <div class="calendar-mask" @click="hide"></div>
-        <div class="calendar-section" :scrollTop.prop="scrollTop" @scroll.passive="onScroll">
-            <div class="calendar-table-option" v-for="(item, index) in calendars" :key="index" :id="getAnchor(item.date)" >
-                <div class="calendar-table-title">{{item.date.format("YYYY年MM月")}}</div>
-                <table class="calendar-table">
-                    <thead>
-                        <tr>
-                            <th v-for="(tItem, tIndex) in 7" :key="tIndex">{{i18n.weekdaysShort[(weekStart+tIndex)%7]}}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(weeksItem, weeksIndex) in item.data" :key="weeksIndex">
-                            <template v-for="(dayItem, dayIndex) in weeksItem">
-                                <!-- 有效 -->
-                                <td :key="dayIndex" v-if="dayItem.isAvailable" @click="select(dayItem.date)" class="available" :class="{
-                            'today' : dayItem.isToday,
-                            'primary' : primaryTime === dayItem.date.getTime()
-                        }">{{dayItem.day}}</td>
-                                <!-- 无效 -->
-                                <td :key="dayIndex" v-else-if="dayItem.type === 0" class="unavailable">{{ dayItem.type === 0 ? dayItem.day : ''}}</td>
-                                <!-- 上下月 -->
-                                <td :key="dayIndex" v-else :class="{'unavailable':dayItem.type != 0 && option.showPrevNextDate}">{{ dayItem.type != 0 && option.showPrevNextDate ? dayItem.day : ''}}</td>
-                            </template>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="calendar-section">
+            <!-- 统一星期标题 -->
+            <ul v-if="!!publicTitle" class="calendar-title">
+                <li v-for="(pItem, pIndex) in 7" :key="pIndex" >{{!!i18n && i18n.weekdaysShort[(weekStart+pIndex)%7]}}</li>
+            </ul>
+            <div class="calendar-lists" :scrollTop.prop="scrollTop" @scroll.passive="onScroll">
+                <div class="calendar-table-option" v-for="(item, index) in calendars" :key="index" :id="getAnchor(item.date)" >
+                    <div class="calendar-table-title">{{item.date.format("YYYY年MM月")}}</div>
+                    <table class="calendar-table">
+                        <thead v-if="!publicTitle">
+                            <tr>
+                                <th v-for="(tItem, tIndex) in 7" :key="tIndex">{{i18n.weekdaysShort[(weekStart+tIndex)%7]}}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(weeksItem, weeksIndex) in item.data" :key="weeksIndex">
+                                <template v-for="(dayItem, dayIndex) in weeksItem">
+                                    <!-- 有效 -->
+                                    <!-- <td :key="dayIndex" v-if="dayItem.isAvailable" @click="select(dayItem.date)" class="available" :class="{
+                                        'today' : dayItem.isToday,
+                                        'primary' : primaryTime === dayItem.date.getTime()
+                                    }">{{dayItem.day}}</td> -->
+                                    <td :key="dayIndex" v-if="dayItem.isAvailable" @click="select(dayItem.date)" class="available" :class="createClass(dayItem)" >{{dayItem.day}}</td>
+                                    <!-- 无效 -->
+                                    <td :key="dayIndex" v-else-if="dayItem.type === 0" class="unavailable">{{ dayItem.type === 0 ? dayItem.day : ''}}</td>
+                                    <!-- 上下月 -->
+                                    <td :key="dayIndex" v-else :class="{'unavailable':dayItem.type != 0 && option.showPrevNextDate}">{{ dayItem.type != 0 && option.showPrevNextDate ? dayItem.day : ''}}</td>
+                                </template>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -84,8 +91,12 @@ export default {
         primaryDate: null,
         // 预选值时间戳
         primaryTime: null,
-
-        preselectedValue : [],
+        // 范围日期
+        range : [],
+        //公用标题 如果为否则每个月份都带有一个标题
+        publicTitle : true,
+        // 文案
+        i18n : null,
         // 默认配置
         option: {
             showPrevNextDate : false, //上下月是否展示
@@ -95,6 +106,7 @@ export default {
             language: 'zh',
             view: 3,
             cache: 2, //存日期个数(上下共4个月份)
+            publicTitle : true, //公用标题 如果为否则每个月份都带有一个标题
         },
         // 文案
         copywriter: {
@@ -119,7 +131,6 @@ export default {
     mounted() {
         // 初始化
         this.init();
-        // this.scrollTop = 1000;
     },
     methods: {
         onScroll(e){
@@ -130,10 +141,6 @@ export default {
             m = m > 9 ? m : `0${m}`;
             return `${this.tag}_${date.getFullYear()}${m}`;
         },
-        // myScrollTop(){
-        //     console.log('in myScrollTop');
-        //     return this.scrollTop;
-        // },
         init() {
             const {
                 copywriter,
@@ -147,13 +154,15 @@ export default {
                 ...config
             };
             this.option = opt;
-            // 这时候拿到的option 并不一定全是正确配置 所以要把配置放在this上最后释放option内存
+            console.log(opt);
+            // 这时候拿到的option 并不一定全是正确配置 所以要把配置放在this上
             this.minDateTime = getTimeOfclearTime(opt.minDate);
             this.maxDateTime = getTimeOfclearTime(opt.maxDate);
             this.i18n = copywriter[opt.language];
             this.fixDate = new Date();
             this.weekStart = /^[0-6]$/g.test(opt.weekStart) ? opt.weekStart : 0;
             this.view = 13; /*===test===*/
+            this.publicTitle = !!opt.publicTitle;
             // this.view =  isType(opt.view, 'Number') && opt.view > 1 && opt.view <6 ? opt.view : 3;
             this.cache = isType(opt.cache, 'Number') && opt.cache > 1 && opt.cache < 4 ? opt.cache : 3;
         },
@@ -168,7 +177,26 @@ export default {
             this.changeDate(date);
             this.hide();
         },
-        render(date) {
+        createClass(data){
+            const {range} = this;
+            const className = [];
+            const currTime = data.date.getTime();
+            const rangeStartTime = !!range[0] ? range[0].getTime() : null;
+            const rangeEndTime = !!range[1] ? range[1].getTime() : null;
+            // 今日
+            data.isToday && className.push('today');
+            // 选中
+            if(currTime === rangeStartTime || currTime === rangeEndTime){
+                className.push('primary');
+            }
+            // 经过
+            if(!!rangeStartTime && !!rangeEndTime && currTime > rangeStartTime && currTime < rangeEndTime){
+                className.push('range');
+            }
+
+            return className;
+        },
+        render(date, range) {
             return new Promise((resolve, reject) => {
                 // 重新渲染清空
                 this.calendars = [];
@@ -178,26 +206,35 @@ export default {
                     this.primaryVal = date;
                     this.primaryTime = this.getTimeOfclearTime(date);
                 }
+                if(this.isType(range, 'Array')){
+                    this.range = range;
+                }
                 // 每次渲染都重新获取今日时间戳
                 this.todayDateTime = this.getTimeOfclearTime(new Date());
                 this.getCalendars();
                 this.show();
-                // this.$refs.myScrollTop.scrollTop = 100;
-                console.log( this.scrollTop );
                 // 一定要异步否则无效 mounted 无法保证组件全部已经在document中
                 setTimeout(()=>{
-                    // console.log( this.getAnchor(this.primaryVal || new Date()) );
-                    if(!!this.primaryVal){
+                    /*if(!!this.primaryVal){
                         let p = document.getElementById( this.getAnchor(this.primaryVal) );
-                        console.log(p.offsetTop);
                         this.scrollTop = p.offsetTop || 0;
                     }else{
                         // 最小值
                         let anchorDate = !!this.minDateTime ? new Date(this.minDateTime) : new Date();
                         let p = document.getElementById( this.getAnchor(anchorDate) );
                         this.scrollTop = p.offsetTop || 0;
+                    }*/
+                    let _range = this.range;
+                    if(!!this.primaryVal){
+                        // 预选没有值
+                        let p = document.getElementById( this.getAnchor(this.primaryVal) );
+                        this.scrollTop = p.offsetTop || 0;
+                    }else{
+                        // 去[回]程判断顺序都是 预选值 -> range[0]->range[1]-minDate
+                        let anchorDate = _range[0] || _range[1] || (!!this.minDateTime ? new Date(this.minDateTime) : new Date());
+                        let p = document.getElementById( this.getAnchor(anchorDate) );
+                        this.scrollTop = p.offsetTop || 0;
                     }
-                    // this.scrollTop = 1000;
                 },50)
 
                 this.select = (date) => {
@@ -234,10 +271,6 @@ export default {
                     for (let i = maxDateOfPrevMonth - daysOfPrevMonth + 1, l = maxDateOfPrevMonth; i <= l; i++) {
                         const currDate = new Date(currYear, currMonth - 1, i); //今天的日期对象
                         const n = createDate(currDate, -1);
-                        /*if (count % 7 === 0) {
-                            data.push(weeks);
-                            weeks = [];
-                        }*/
                         count++;
                         weeks.push({
                             ...n,
@@ -257,7 +290,6 @@ export default {
                         day: i,
                         date: currDate
                     });
-                    // count++;
                     if (++count % 7 === 0) {
                         month.push(weeks);
                         weeks = [];
@@ -343,5 +375,5 @@ export default {
 }
 </script>
 <style lang="scss"scoped>
-@import './calendar.scss'
+@import './calendar.alpha.2.scss'
 </style>

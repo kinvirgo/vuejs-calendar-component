@@ -154,6 +154,7 @@ export default {
             this.fixDate = new Date();
             this.weekStart = /^[0-6]$/g.test(opt.weekStart) ? opt.weekStart : 0;
             this.view = 13; /*===test===*/
+            // console.log(this);
             // this.view =  isType(opt.view, 'Number') && opt.view > 1 && opt.view <6 ? opt.view : 3;
             this.cache = isType(opt.cache, 'Number') && opt.cache > 1 && opt.cache < 4 ? opt.cache : 3;
         },
