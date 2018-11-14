@@ -122,7 +122,6 @@ export default {
                 clearTime,
                 getTimeOfclearTime
             } = this;
-            console.log(option);
             // merge 配置
             const config = { ...opt,
                 ...option

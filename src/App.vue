@@ -3,11 +3,11 @@
     <h2>日历插件</h2>
     <p @click="selectStartDate">去程日期：{{ startDate && startDate.format() }}</p>
     <div class="calendar-container">
-        <Calendar ref="myStartCalendar" v-model="startDate" :option="startConfig"></Calendar>
+        <Calendar ref="myStartCalendar" v-model="startDate" :option="startConfig" />
     </div>
     <p @click="selectEndDate">回程日期：{{ endDate && endDate.format() }}</p>
     <div class="calendar-container">
-        <Calendar ref="myEndCalendar" v-model="endDate" :option="endConfig"></Calendar>
+        <Calendar ref="myEndCalendar" v-model="endDate" :option="endConfig" />
     </div>
 </div>
 </template>
@@ -39,7 +39,7 @@ export default {
         }
     },
     mounted() {
-        this.selectStartDate();
+        // this.selectStartDate();
     },
     components: {
         Calendar
