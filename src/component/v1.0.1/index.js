@@ -1,4 +1,4 @@
-import CalendarComponent from './calendar.beta.1.vue'
+import CalendarComponent from './calendar.beta.vue'
 
 const Calendar = {};
 

@@ -2,7 +2,7 @@
 <transition name="slide">
     <div v-show="display" class="vc-calendar-root">
         <!-- calendar-mask -->
-        <div class="vc-calendar-mask" @click="hide"></div>
+        <div class="vc-calendar-mask" @click="hide">{{scrollTop}}</div>
         <!-- calendar-section -->
         <div class="vc-calendar-section">
             <!-- 公用星期标题 -->
@@ -10,21 +10,33 @@
                 <li v-for="(pItem, pIndex) in 7" :key="pIndex">{{!!i18n && i18n.weekdaysShort[(week+pIndex)%7]}}</li>
             </ul>
             <!-- 日历列表 -->
-            <div class="vc-calendar" :scrollTop.prop="scrollTop" @scroll.passive="onScroll">
+            <div class="vc-calendar" :class="{'vc-calendar-top': !publicWeek }" :scrollTop.prop="getScrollTop()" @scroll.passive="onScroll">
                 <!-- 每月列表 -->
-                <div class="vc-calendar-month" v-for="(item, index) in calendars" :key="index" :id="getAnchor(item.date)" >
+                <div class="vc-calendar-month" v-for="(item, index) in calendars" :key="index" :id="getAnchor(item.date)">
                     <!-- 每月标题 -->
                     <h1 class="vc-calendar-month-title">{{item.date.format(format)}}</h1>
-                    <ul class="vc-calendar-day">
+                    <ul v-if="item.loadType === 1" class="vc-calendar-day">
+                        <template v-if="!publicWeek">
+                            <li v-for="(pwItem, pwIndex) in 7" class="vc-calendar-week-item" :key="`pw-${pwIndex}`">{{!!i18n && i18n.weekdaysShort[(week+pwIndex)%7]}}</li>
+                        </template>
+
                         <template v-for="(dayItem, dayIndex) in item.data">
                             <!-- 有效 -->
-                            <li v-if="dayItem.isAvailable" class="vc-calendar-day-item" :key="dayIndex" :class="createClass(dayItem)" @click="select(dayItem.date)" >{{dayItem.day}}</li>
+                            <li v-if="dayItem.isAvailable" class="vc-calendar-day-item" :key="dayIndex" :class="createClass(dayItem)" @click="select(dayItem.date)">{{dayItem.day}}</li>
                             <!-- 无效 -->
-                            <li v-else-if="dayItem.type === 0" class="vc-calendar-day-item unavailable" :key="dayIndex" >{{ dayItem.type === 0 ? dayItem.day : ''}}</li>
+                            <li v-else-if="dayItem.type === 0" class="vc-calendar-day-item unavailable" :key="dayIndex">{{ dayItem.type === 0 ? dayItem.day : ''}}</li>
                             <!-- 上下月 -->
                             <li v-else class="vc-calendar-day-item" :class="{'unavailable':dayItem.type != 0 && showPrevNextDate}" :key="dayIndex">{{ dayItem.type != 0 && showPrevNextDate ? dayItem.day : ''}}</li>
                         </template>
                     </ul>
+                    <!-- 加载中状态 -->
+                    <div v-else-if="item.loadType === 0" class="vc-calendar-month-loading">
+                        <h1>加载中...</h1>
+                    </div>
+                    <!-- 未加载状态 -->
+                    <div v-else="item.loadType === -1" class="vc-calendar-month-unload">
+                        <h1>{{item.date.getMonth()+1}}</h1>
+                    </div>
                 </div>
             </div>
         </div>
@@ -79,9 +91,10 @@ export default {
             maxDate: null,
             week: 0, //一周星期几开始 0-7[星期日-星期一]
             language: 'zh',
-            // view: 3,
+            view: 3,
             publicWeek: true, //公用周标题
-            format : "YYYY年MM月"
+            format: "YYYY年MM月",
+            cache: 3, //缓存3个月份
         },
         // 文案
         copywriter: {
@@ -91,7 +104,12 @@ export default {
             'en': {
                 weekdaysShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
             }
-        }
+        },
+        // ===========test=========
+        topHeight: 0,
+        bottomHeight: 0,
+        isCache: true,
+
     }),
     methods: {
         init(option) {
@@ -101,7 +119,8 @@ export default {
                 opt,
                 isType,
                 clearTime,
-                getTimeOfclearTime
+                getTimeOfclearTime,
+                getIntervalMonth
             } = this;
             // merge 配置
             const config = { ...opt,
@@ -113,17 +132,80 @@ export default {
             this.i18n = copywriter[config.language];
             this.fixDate = new Date();
             this.week = /^[0-6]$/g.test(config.week) ? opt.week : 0;
-            this.view = 13; //本插件固定13月
+            this.view = 4; //插件默认渲染多少月份[其他月份按需加载计算]
+            this.cache = config.cache; //缓存月份
             this.publicWeek = !!config.publicWeek;
             this.showPrevNextDate = !!config.showPrevNextDate;
             this.format = config.format;
+            this.countMonth = getIntervalMonth(config.minDate, config.maxDate);
+
+            // console.log(this.countMonth);
         },
-        choose(date){
-            this.changeDate(date);
-            this.hide();
+        /*====test===*/
+        getIntervalMonth(startDate, endDate){
+            const startMonth = startDate.getMonth();
+            const endMonth = endDate.getMonth();
+            return Math.abs((startDate.getFullYear()*12+startMonth)-(endDate.getFullYear()*12+endMonth))+1;
         },
-        onScroll(e){
-            this.scrollTop = e.target.scrollTop;
+        /*====test===*/
+        onScroll(e) {
+            const currentScrollTop = e.target.scrollTop;
+            // const scrollHeight = document.getElementById(`scroll-${this.tag}`).offsetHeight;
+            if (currentScrollTop > this.scrollTop) {
+                // 向下滚动
+                console.log("===内容向上滚动===");
+                const offsetHeight = document.getElementById(this.getAnchor(this.calendars[2].date)).offsetTop;
+                if (offsetHeight < currentScrollTop) {
+                    /*===方案一 电脑可以：移动端不行====*/
+                    /*this.isCache = false;
+                    const fh = document.getElementById(this.getAnchor(this.calendars[0].date)).offsetHeight;
+                    const sh = document.getElementById(this.getAnchor(this.calendars[1].date)).offsetHeight;
+                    const th = document.getElementById(this.getAnchor(this.calendars[2].date)).offsetHeight;
+                    this.topHeight += fh;
+                    this.topHeight += sh;
+                    this.topHeight += th;
+                    // 移除
+                    const m = this.calendars.shift();
+                    this.calendars.push(m);
+
+                    const n = this.calendars.shift();
+                    this.calendars.push(n);
+
+                    const k = this.calendars.shift();
+                    this.calendars.push(k);
+
+                    this.isCache = true;*/
+
+                    /*===方案二====*/
+                    /*console.log("===方案二====");
+                    this.isCache = false;
+                    const fh = document.getElementById(this.getAnchor(this.calendars[0].date)).offsetHeight;
+                    this.scrollTop = 0;
+                    const n = this.calendars.shift();
+                    this.calendars.push(n)
+                    this.isCache = true;*/
+                } else {
+                    // this.scrollTop = currentScrollTop;
+
+
+                }
+                const lastOffsetTop = document.getElementById(this.getAnchor(this.calendars[(this.calendars.length - 1 - 2)].date)).offsetTop;
+
+
+                console.log(lastOffsetTop, currentScrollTop);
+
+            } else {
+                // 向上滚动
+                console.log("===内容向下滚动===");
+
+
+
+            }
+            this.scrollTop = currentScrollTop;
+        },
+        getScrollTop() {
+            // console.log("in getScrollTop");
+            return this.scrollTop;
         },
         render(date, range) {
             // 返回Promise 对象
@@ -131,40 +213,77 @@ export default {
                 this.calendars = [];
                 if (this.isType(range, 'Array')) {
                     this.range = range;
-                }else{
+                } else {
                     this.range = [];
                 }
+                let anchorDate;
+                if (this.isType(date, 'Date')) {
+                    anchorDate = date;
+                } else {
+                    // 去[回]程判断顺序都是 预选值 -> range[0]->range[1]-minDate
+                    anchorDate = this.range[0] || this.range[1] || (!!this.minDateTime ? new Date(this.minDateTime) : new Date());
+                }
+                this.fixDate = anchorDate;
                 // 重新获取今日时间戳
                 this.todayDateTime = this.getTimeOfclearTime(new Date());
                 this.createCalendars();
                 this.show();
                 //一定要异步否则无效,mounted无法保证组件全部已经在document中
                 setTimeout(() => {
-                    let anchorDate;
-                    if (this.isType(date, 'Date')) {
-                        anchorDate = date;
-                    } else {
-                        // 去[回]程判断顺序都是 预选值 -> range[0]->range[1]-minDate
-                        anchorDate = this.range[0] || this.range[1] || (!!this.minDateTime ? new Date(this.minDateTime) : new Date());
-                    }
                     this.scrollTop = document.getElementById(this.getAnchor(anchorDate)).offsetTop || 0;
-                },50);
+                }, 50);
                 // 注册选择事件
                 this.select = (date) => {
+                    this.hide();
                     resolve(date);
                 }
             });
         },
         createCalendars() {
             const {
-                view,
+                countMonth,
                 fixDate,
+                minDateTime,
+                view,
                 week,
                 createTodayObj,
                 getMaxDate,
                 getDateOfArray
             } = this;
+            const calendars = [];
             const fixDateArray = getDateOfArray(fixDate);
+            const startDateArray = getDateOfArray(new Date(minDateTime));
+            // console.log(startDateArray);
+            // const rangeView = [new Date(fixDateArray[0], fixDateArray[1], 1), new Date(fixDateArray[0], fixDateArray[1]+view-1, 1)];
+            const rangeStartTime = new Date(fixDateArray[0], fixDateArray[1], 1).getTime();
+            const rangeEndTime = new Date(fixDateArray[0], fixDateArray[1]+view-1, 1).getTime();
+            console.log(rangeStartTime, rangeEndTime);
+            /*===test===*/
+            for(let i = 0, l = countMonth; i < l; i++){
+                // minDate-maxDate 一共渲染countMonth月份 1.在当前定位月份中 2.非当前定位月份中(按需加载)
+                let currentViewDate = new Date(startDateArray[0], startDateArray[1] + i, 1);
+                console.log(currentViewDate);
+                if( currentViewDate.getTime() >= rangeStartTime && currentViewDate.getTime() <= rangeEndTime){
+                    // 1.在当前定位月份中
+                    calendars.push(this.createCalendarsOfView(currentViewDate));
+                }else{
+                    // 2.非当前定位月份中(按需加载)
+                    calendars.push({
+                        date : currentViewDate,
+                        data : [],
+                        loadType : -1, //-1-未加载 0-加载中 1-加载完成(可以加载)
+                    });
+                }
+            }
+
+
+
+            this.calendars = calendars;
+
+
+            return;
+
+            /*===test===*/
             for (let i = 0, l = view; i < l; i++) {
                 let currentViewDate = new Date(fixDateArray[0], fixDateArray[1] + i, 1);
                 let currentYear = currentViewDate.getFullYear();
@@ -194,10 +313,52 @@ export default {
                         month.push(createTodayObj(currentDate, 1, n));
                     }
                 }
+
                 this.calendars.push({
                     date: currentViewDate,
                     data: month
                 })
+            }
+        },
+        createCalendarsOfView(currentViewDate){
+            const {
+                week,
+                createTodayObj,
+                getMaxDate
+            } = this;
+            // 渲染月份日历
+            let currentYear = currentViewDate.getFullYear();
+            let currentMonth = currentViewDate.getMonth();
+            let weekdayOfFirstDay = currentViewDate.getDay();
+            let daysOfLastMonth = (weekdayOfFirstDay - week + 7) % 7;
+            let maxDateOfCurrentMonth = getMaxDate(currentYear, currentMonth);
+            let month = []; //月
+            // 上月填补天数
+            if (daysOfLastMonth > 0) {
+                let maxDateOfLastMonth = getMaxDate(currentYear, currentMonth - 1);
+                for (let n = (maxDateOfLastMonth - daysOfLastMonth + 1), m = maxDateOfLastMonth; n <= m; n++) {
+                    const currentDate = new Date(currentYear, currentMonth - 1, n);
+                    month.push(createTodayObj(currentDate, -1, n));
+                }
+            }
+            // 当前月
+            for (let n = 1, m = maxDateOfCurrentMonth; n <= m; n++) {
+                const currentDate = new Date(currentYear, currentMonth, n);
+                month.push(createTodayObj(currentDate, 0, n));
+            }
+            // 下月
+            if (month.length % 7 != 0) {
+                // 非6*7计算(如果按照6*7计算则m=6*7-month.length)
+                for (let n = 1, m = (7 - month.length % 7); n <= m; n++) {
+                    const currentDate = new Date(currentYear, currentMonth + 1, n);
+                    month.push(createTodayObj(currentDate, 1, n));
+                }
+            }
+
+            return{
+                date: currentViewDate,
+                data: month,
+                loadType : 1, //-1-未加载 0-加载中 1-加载完成(可以加载)
             }
         },
         createTodayObj(date, type, day) {
@@ -224,8 +385,10 @@ export default {
             }
             return r;
         },
-        createClass(data){
-            const {range} = this;
+        createClass(data) {
+            const {
+                range
+            } = this;
             const className = [];
             const currTime = data.date.getTime();
             const rangeStartTime = !!range[0] ? range[0].getTime() : null;
@@ -233,11 +396,11 @@ export default {
             // 今日
             data.isToday && className.push('today');
             // 选中
-            if(currTime === rangeStartTime || currTime === rangeEndTime){
+            if (currTime === rangeStartTime || currTime === rangeEndTime) {
                 className.push('selected');
             }
             // 经过
-            if(!!rangeStartTime && !!rangeEndTime && currTime > rangeStartTime && currTime < rangeEndTime){
+            if (!!rangeStartTime && !!rangeEndTime && currTime > rangeStartTime && currTime < rangeEndTime) {
                 className.push('range');
             }
             return className;
@@ -265,13 +428,17 @@ export default {
             // return this.isDate(date) ? [date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()] : [];
             return this.isType(date, 'Date') ? [date.getFullYear(), date.getMonth(), date.getDate()] : [null, null, null];
         },
+        getDateOfclearTime(date){
+            // 清除时间后的日期对象
+            return this.isType(date, 'Date') ? new Date(date.getFullYear(), date.getMonth(), 1) : null;
+        },
         getTimeOfclearTime(date) {
-            // 清楚时间后的时间戳
+            // 清除时间后的时间戳
             return this.isType(date, 'Date') ? new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() : null;
         },
     }
 }
 </script>
 <style lang="scss" scoped>
-@import './calendar.beta.1.scss'
+@import './calendar.beta.scss'
 </style>
