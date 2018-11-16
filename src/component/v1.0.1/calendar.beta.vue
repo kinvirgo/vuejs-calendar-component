@@ -12,7 +12,7 @@
             <!-- 日历列表 -->
             <div class="vc-calendar" :class="{'vc-calendar-top': !publicWeek }" :scrollTop.prop="getScrollTop()" @scroll.passive="onScroll">
                 <!-- 每月列表 -->
-                <div class="vc-calendar-month" v-for="(item, index) in calendars" :key="index" :id="getAnchor(item.date)">
+                <div class="vc-calendar-month" v-for="(item, index) in calendars" :key="index" :id="getAnchor(item.date)" :data-index="index">
                     <!-- 每月标题 -->
                     <h1 class="vc-calendar-month-title">{{item.date.format(format)}}</h1>
                     <ul v-if="item.loadType === 1" class="vc-calendar-day">
@@ -82,6 +82,7 @@ export default {
         scrollTop: 0,
         calendars: [],
         range: [],
+        renderRange : [], //当前渲染区间 记录当前已经渲染的区间
         i18n: null,
         publicWeek: null,
         // 默认配置
@@ -129,10 +130,12 @@ export default {
             // 这时候拿到的config并不一定全是正确配置
             this.minDateTime = getTimeOfclearTime(config.minDate);
             this.maxDateTime = getTimeOfclearTime(config.maxDate);
+            this.minDateOfclearDateTime = this.getDateOfclearDateTime(config.minDate); //去除天数(设置为1)、时间的日期对象
+            this.maxDateOfclearDateTime = this.getDateOfclearDateTime(config.maxDate); //去除天数(设置为1)、时间的日期对象
             this.i18n = copywriter[config.language];
             this.fixDate = new Date();
             this.week = /^[0-6]$/g.test(config.week) ? opt.week : 0;
-            this.view = 4; //插件默认渲染多少月份[其他月份按需加载计算]
+            this.view = 3; //插件默认渲染多少月份[其他月份按需加载计算]
             this.cache = config.cache; //缓存月份
             this.publicWeek = !!config.publicWeek;
             this.showPrevNextDate = !!config.showPrevNextDate;
@@ -150,61 +153,41 @@ export default {
         /*====test===*/
         onScroll(e) {
             const currentScrollTop = e.target.scrollTop;
-            // const scrollHeight = document.getElementById(`scroll-${this.tag}`).offsetHeight;
             if (currentScrollTop > this.scrollTop) {
                 // 向下滚动
-                console.log("===内容向上滚动===");
-                const offsetHeight = document.getElementById(this.getAnchor(this.calendars[2].date)).offsetTop;
-                if (offsetHeight < currentScrollTop) {
-                    /*===方案一 电脑可以：移动端不行====*/
-                    /*this.isCache = false;
-                    const fh = document.getElementById(this.getAnchor(this.calendars[0].date)).offsetHeight;
-                    const sh = document.getElementById(this.getAnchor(this.calendars[1].date)).offsetHeight;
-                    const th = document.getElementById(this.getAnchor(this.calendars[2].date)).offsetHeight;
-                    this.topHeight += fh;
-                    this.topHeight += sh;
-                    this.topHeight += th;
-                    // 移除
-                    const m = this.calendars.shift();
-                    this.calendars.push(m);
-
-                    const n = this.calendars.shift();
-                    this.calendars.push(n);
-
-                    const k = this.calendars.shift();
-                    this.calendars.push(k);
-
-                    this.isCache = true;*/
-
-                    /*===方案二====*/
-                    /*console.log("===方案二====");
-                    this.isCache = false;
-                    const fh = document.getElementById(this.getAnchor(this.calendars[0].date)).offsetHeight;
-                    this.scrollTop = 0;
-                    const n = this.calendars.shift();
-                    this.calendars.push(n)
-                    this.isCache = true;*/
-                } else {
-                    // this.scrollTop = currentScrollTop;
-
-
+                // console.log("===内容向上滚动===", endRangeDate);
+                const endRangeDate = this.renderRange[1];
+                const dom = document.getElementById(this.getAnchor(endRangeDate));
+                const lastOffsetTop = dom.offsetTop;
+                const index = dom.getAttribute('data-index');
+                const item = this.calendars[index*1+1];
+                if(currentScrollTop+275*3 > lastOffsetTop && !!item && item.loadType == -1){
+                    // 未加载
+                    // console.log('下加载...');
+                    item.loadType = 0;
+                    this.renderRange[1] = item.date;
+                    item.data = this.createCalendarsOfView(item.date).data;
+                    item.loadType = 1;
                 }
-                const lastOffsetTop = document.getElementById(this.getAnchor(this.calendars[(this.calendars.length - 1 - 2)].date)).offsetTop;
-
-
-                console.log(lastOffsetTop, currentScrollTop);
-
             } else {
                 // 向上滚动
-                console.log("===内容向下滚动===");
-
-
-
+                const startRangeDate = this.renderRange[0];
+                const dom = document.getElementById(this.getAnchor(startRangeDate));
+                const lastOffsetTop = dom.offsetTop;
+                const index = dom.getAttribute('data-index');
+                const item = this.calendars[index*1-1];
+                if(currentScrollTop-lastOffsetTop < 275 && !!item && item.loadType == -1){
+                    // 未加载
+                    item.loadType = 0;
+                    // console.log('上加载...');
+                    this.renderRange[0] = item.date;
+                    item.data = this.createCalendarsOfView(item.date).data;
+                    item.loadType = 1;
+                }
             }
             this.scrollTop = currentScrollTop;
         },
         getScrollTop() {
-            // console.log("in getScrollTop");
             return this.scrollTop;
         },
         render(date, range) {
@@ -241,11 +224,14 @@ export default {
         },
         createCalendars() {
             const {
+                cache,
                 countMonth,
                 fixDate,
                 minDateTime,
                 view,
                 week,
+                minDateOfclearDateTime,
+                maxDateOfclearDateTime,
                 createTodayObj,
                 getMaxDate,
                 getDateOfArray
@@ -255,15 +241,22 @@ export default {
             const startDateArray = getDateOfArray(new Date(minDateTime));
             // console.log(startDateArray);
             // const rangeView = [new Date(fixDateArray[0], fixDateArray[1], 1), new Date(fixDateArray[0], fixDateArray[1]+view-1, 1)];
-            const rangeStartTime = new Date(fixDateArray[0], fixDateArray[1], 1).getTime();
-            const rangeEndTime = new Date(fixDateArray[0], fixDateArray[1]+view-1, 1).getTime();
-            console.log(rangeStartTime, rangeEndTime);
+            // const rangeStartTime = new Date(fixDateArray[0], fixDateArray[1], 1).getTime();
+            // const rangeEndTime = new Date(fixDateArray[0], fixDateArray[1]+view-1, 1).getTime();
+            // 计算初始化渲染区间 = 开始渲染区间+缓冲区间
+            let renderStartDateRange = new Date(fixDateArray[0], fixDateArray[1]-cache, 1);
+            let renderEndDateRange = new Date(fixDateArray[0], fixDateArray[1]+cache+view-2, 1);
+
+            renderStartDateRange = renderStartDateRange.getTime() > minDateOfclearDateTime.getTime() ? renderStartDateRange : minDateOfclearDateTime;
+            renderEndDateRange = renderEndDateRange.getTime() < maxDateOfclearDateTime.getTime() ? renderEndDateRange : maxDateOfclearDateTime;
+            this.renderRange = [renderStartDateRange, renderEndDateRange];
+            console.log(renderStartDateRange, renderEndDateRange);
             /*===test===*/
             for(let i = 0, l = countMonth; i < l; i++){
                 // minDate-maxDate 一共渲染countMonth月份 1.在当前定位月份中 2.非当前定位月份中(按需加载)
                 let currentViewDate = new Date(startDateArray[0], startDateArray[1] + i, 1);
-                console.log(currentViewDate);
-                if( currentViewDate.getTime() >= rangeStartTime && currentViewDate.getTime() <= rangeEndTime){
+                // console.log(currentViewDate);
+                if( currentViewDate.getTime() >= renderStartDateRange.getTime() && currentViewDate.getTime() <= renderEndDateRange.getTime() ){
                     // 1.在当前定位月份中
                     calendars.push(this.createCalendarsOfView(currentViewDate));
                 }else{
@@ -275,15 +268,10 @@ export default {
                     });
                 }
             }
-
-
-
             this.calendars = calendars;
 
-
-            return;
-
             /*===test===*/
+            return;
             for (let i = 0, l = view; i < l; i++) {
                 let currentViewDate = new Date(fixDateArray[0], fixDateArray[1] + i, 1);
                 let currentYear = currentViewDate.getFullYear();
@@ -428,7 +416,7 @@ export default {
             // return this.isDate(date) ? [date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()] : [];
             return this.isType(date, 'Date') ? [date.getFullYear(), date.getMonth(), date.getDate()] : [null, null, null];
         },
-        getDateOfclearTime(date){
+        getDateOfclearDateTime(date){
             // 清除时间后的日期对象
             return this.isType(date, 'Date') ? new Date(date.getFullYear(), date.getMonth(), 1) : null;
         },
