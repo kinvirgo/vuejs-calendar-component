@@ -23,12 +23,12 @@ export default {
         let Cal = this.$Calendar; //获得Calendar插件
         this.startCalendar = new Cal({
             minDate: new Date(),
-            maxDate: new Date(new Date().setFullYear(new Date().getFullYear()+1)),
+            maxDate: new Date(new Date().setFullYear(new Date().getFullYear()+10)),
             week: 1,
         }); //实例一个对象
         this.endCalendar = new Cal({
             minDate: new Date(),
-            maxDate: new Date(new Date().setFullYear(new Date().getFullYear()+1)),
+            maxDate: new Date(new Date().setFullYear(new Date().getFullYear()+10)),
             week: 1, //一周星期几开始 0-7[星期日-星期一]
             showPrevNextDate : true,  //上下月是否展示
             language: 'en',
